@@ -24,6 +24,7 @@ const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 
+// todos routes
 app.post('/todos', (req, res) => {
     const todo = new Todo({
         text: req.body.text,
@@ -121,6 +122,21 @@ app.patch('/todos/:id', (req, res) => {
         res.status(400).send(err);
     });
 });
+
+// users routes
+app.post('/users', (req, res) => {
+    const body = _.pick(req.body, ['email', 'password']);
+
+    const user =  new User(body)
+    console.log(JSON.stringify(body, undefined,2));
+    
+    user.save().then(doc => {
+        res.status(200).send(doc);
+    }, err => {
+        res.status(400).send(err);
+    });
+});
+
 
 app.listen(port, () => {
     console.log(`Started on port ${port}`);
