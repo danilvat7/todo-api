@@ -130,7 +130,7 @@ app.patch('/todos/:id', (req, res) => {
 app.post('/users', (req, res) => {
     const body = _.pick(req.body, ['email', 'password']);
 
-    const user = new User(body)
+    const user = new User(body);
 
     user.save().then(_ => {
             return user.generateAuthToken();

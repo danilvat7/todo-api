@@ -15,21 +15,21 @@ const {
     Todo
 } = require('./../models/todo');
 
-const todosMock = [{
-    _id: new ObjectID(),
-    text: 'First test todo'
-}, {
-    _id: new ObjectID(),
-    text: 'Second test todo',
-    completed: true,
-    completedAt: 333
-}];
+const {
+    User
+} = require('./../models/user');
 
-beforeEach((done) => {
-    Todo.remove({}).then(() => {
-        return Todo.insertMany(todosMock)
-    }).then(() => done());
-});
+const {
+    populateTodos,
+    todosMock,
+    populateUsers,
+    usersMock
+} = require('./seed/seed');
+
+
+beforeEach(populateUsers);
+beforeEach(populateTodos);
+
 
 describe('POST /todos', () => {
     it('create a new todo', (done) => {
@@ -194,6 +194,73 @@ describe('PATCH /todo/:id', () => {
         request(app)
             .patch(`/todos/123asdd`)
             .expect(404)
+            .end(done);
+    });
+});
+
+describe('GET /users/me', () => {
+    it('should return user if authenticated', (done) => {
+        request(app)
+            .get('/users/me')
+            .set('x-auth', usersMock[0].tokens[0].token)
+            .expect(200)
+            .expect(res => {
+                expect(res.body._id).to.equal(usersMock[0]._id.toHexString());
+                expect(res.body.email).to.equal(usersMock[0].email);
+            })
+            .end(done);
+    });
+
+    it('should return 401 if no authenticated', (done) => {
+        request(app)
+            .get('/users/me')
+            .set('x-auth', '')
+            .expect(401)
+            .end(done);
+    });
+});
+
+describe('POST /users', () => {
+    it('should create new user', (done) => {
+        const user = {
+            email: 'em@em.com',
+            password: 'Password'
+        }
+
+        request(app)
+            .post('/users')
+            .send(user)
+            .expect(200)
+            .expect(res => {
+                expect(res.headers['x-auth']).to.be.a('string');
+                expect(res.body.email).to.equal(user.email);
+            })
+            .end(done);
+    });
+
+    it('should returns validators error', (done) => {
+        const user = {
+            email: 'invalid',
+            password: 'Password'
+        };
+        request(app)
+            .post('/users')
+            .send(user)
+            .expect(400)
+            .end(done);
+    });
+
+    it('should not create user if exist email', (done) => {
+        const user = {
+            email: 'em@em.com',
+            password: 'Password'
+        };
+        new User(user).save();
+
+        request(app)
+            .post('/users')
+            .send(user)
+            .expect(400)
             .end(done);
     });
 });
