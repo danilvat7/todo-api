@@ -5,6 +5,8 @@ const express = require('express');
 
 const bodyParser = require('body-parser')
 
+const bcrypt = require('bcryptjs');
+
 const {
     ObjectID
 } = require('mongodb');
@@ -21,6 +23,11 @@ const {
 const {
     authenticate
 } = require('./middleware/authenticate');
+
+const {
+    bodyPick
+} = require('./helpers/helpers');
+
 const app = express();
 
 const port = process.env.PORT || 3000;
@@ -97,7 +104,7 @@ app.patch('/todos/:id', (req, res) => {
     const {
         id
     } = req.params;
-    const body = _.pick(req.body, ['text', 'completed']);
+    const body = bodyPick(req, ['text', 'completed']);
 
     if (!ObjectID.isValid(id)) {
         return res.status(404).send();
@@ -128,10 +135,9 @@ app.patch('/todos/:id', (req, res) => {
 
 // users routes
 app.post('/users', (req, res) => {
-    const body = _.pick(req.body, ['email', 'password']);
+    const body = bodyPick(req);
 
     const user = new User(body);
-
     user.save().then(_ => {
             return user.generateAuthToken();
         })
@@ -144,6 +150,25 @@ app.post('/users', (req, res) => {
 
 app.get('/users/me', authenticate, (req, res) => {
     res.send(req.user)
+});
+
+app.post('/users/login', (req, res) => {
+    const body = bodyPick(req);
+    User.findByCredentials(body).then(user => {
+        return user.generateAuthToken().then(token => {
+            res.header('x-auth', token).send(user);
+        });
+    }).catch(err => {
+        res.status(400).send(err);
+    });
+});
+
+app.delete('/users/me/token', authenticate, (req, res) => {
+    req.user.removeToken(req.token).then(_ => {
+        res.status(200).send();
+    }, _ => {
+        res.status(400).send();
+    });
 });
 
 app.listen(port, () => {

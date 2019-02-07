@@ -264,3 +264,37 @@ describe('POST /users', () => {
             .end(done);
     });
 });
+
+describe('POST /users/login', () => {
+    it('should return user', (done) => {
+        const {
+            email,
+            password
+        } = usersMock[0];
+
+        request(app)
+            .post('/users/login')
+            .send({
+                email,
+                password
+            })
+            .expect(200)
+            .expect(res => {
+                expect(res.headers['x-auth']).to.be.a('string');
+                expect(res.body.email).to.equal(email);
+            })
+            .end(done);
+    });
+
+    it('should returns validators error', (done) => {
+        request(app)
+            .post('/users/login')
+            .send({
+                email: 'email@em.com',
+                password: 'password'
+            })
+            .expect(400)
+            .end(done);
+    });
+
+});
