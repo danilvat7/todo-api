@@ -37,6 +37,7 @@ describe('POST /todos', () => {
 
         request(app)
             .post('/todos')
+            .set('x-auth', usersMock[0].tokens[0].token)
             .send({
                 text
             })
@@ -61,6 +62,7 @@ describe('POST /todos', () => {
     it('should not create todo with invalid body data', (done) => {
         request(app)
             .post('/todos')
+            .set('x-auth', usersMock[0].tokens[0].token)
             .send({})
             .expect(400)
             .end((err, res) => {
@@ -79,9 +81,10 @@ describe('GET /todos', () => {
     it('should get all todos', (done) => {
         request(app)
             .get('/todos')
+            .set('x-auth', usersMock[0].tokens[0].token)
             .expect(200)
             .expect(res => {
-                expect(res.body.todos.length).to.equal(2)
+                expect(res.body.todos.length).to.equal(1)
             })
             .end(done);
     })
@@ -91,6 +94,7 @@ describe('GET /todo/:id', () => {
     it('should get todo by id', (done) => {
         request(app)
             .get(`/todos/${todosMock[0]._id.toHexString()}`)
+            .set('x-auth', usersMock[0].tokens[0].token)
             .expect(200)
             .expect(res => {
                 expect(res.body.todo.text).to.equal(todosMock[0].text)
@@ -98,9 +102,18 @@ describe('GET /todo/:id', () => {
             .end(done);
     });
 
+    it('should not return todo create by another user', (done) => {
+        request(app)
+            .get(`/todos/${todosMock[1]._id.toHexString()}`)
+            .set('x-auth', usersMock[0].tokens[0].token)
+            .expect(404)
+            .end(done);
+    });
+
     it('should return 404 if todo not found', (done) => {
         request(app)
             .get(`/todos/${new ObjectID().toHexString()}`)
+            .set('x-auth', usersMock[0].tokens[0].token)
             .expect(404)
             .end(done);
     });
@@ -108,6 +121,7 @@ describe('GET /todo/:id', () => {
     it('should return 404 if for not valid id', (done) => {
         request(app)
             .get(`/todos/123asdd`)
+            .set('x-auth', usersMock[0].tokens[0].token)
             .expect(404)
             .end(done);
     });
@@ -117,6 +131,7 @@ describe('DELETE /todo/:id', () => {
     it('should delete todo by id', (done) => {
         request(app)
             .delete(`/todos/${todosMock[1]._id.toHexString()}`)
+            .set('x-auth', usersMock[1].tokens[0].token)
             .expect(200)
             .expect(res => {
                 expect(res.body.todo.text).to.equal(todosMock[1].text)
@@ -131,13 +146,20 @@ describe('DELETE /todo/:id', () => {
                     done();
                 }).catch(err => done(err));
             });
+    });
 
-
+    it('should not delete todo created by another user', (done) => {
+        request(app)
+            .delete(`/todos/${todosMock[1]._id.toHexString()}`)
+            .set('x-auth', usersMock[0].tokens[0].token)
+            .expect(404)
+            .end(done);
     });
 
     it('should return 404 if todo not found', (done) => {
         request(app)
             .delete(`/todos/${new ObjectID().toHexString()}`)
+            .set('x-auth', usersMock[0].tokens[0].token)
             .expect(404)
             .end(done);
     });
@@ -145,6 +167,7 @@ describe('DELETE /todo/:id', () => {
     it('should return 404 if id not valid', (done) => {
         request(app)
             .delete(`/todos/123asdd`)
+            .set('x-auth', usersMock[0].tokens[0].token)
             .expect(404)
             .end(done);
     });
@@ -155,6 +178,7 @@ describe('PATCH /todo/:id', () => {
         const firstTodoId = todosMock[0]._id.toHexString();
         request(app)
             .patch(`/todos/${firstTodoId}`)
+            .set('x-auth', usersMock[0].tokens[0].token)
             .send({
                 completed: true,
                 text: 'text'
@@ -168,10 +192,24 @@ describe('PATCH /todo/:id', () => {
             .end(done);
     });
 
+    it('should not update todo created by another user', (done) => {
+        const firstTodoId = todosMock[0]._id.toHexString();
+        request(app)
+            .patch(`/todos/${firstTodoId}`)
+            .set('x-auth', usersMock[1].tokens[0].token)
+            .send({
+                completed: true,
+                text: 'text'
+            })
+            .expect(404)
+            .end(done);
+    });
+
     it('should update todo by id - completed: false', (done) => {
         const secondTodoId = todosMock[1]._id.toHexString();
         request(app)
             .patch(`/todos/${secondTodoId}`)
+            .set('x-auth', usersMock[1].tokens[0].token)
             .send({
                 completed: false
             })
@@ -186,6 +224,7 @@ describe('PATCH /todo/:id', () => {
     it('should return 404 if todo not found', (done) => {
         request(app)
             .patch(`/todos/${new ObjectID().toHexString()}`)
+            .set('x-auth', usersMock[0].tokens[0].token)
             .expect(404)
             .end(done);
     });
@@ -193,6 +232,7 @@ describe('PATCH /todo/:id', () => {
     it('should return 404 if id not valid', (done) => {
         request(app)
             .patch(`/todos/123asdd`)
+            .set('x-auth', usersMock[0].tokens[0].token)
             .expect(404)
             .end(done);
     });
@@ -297,4 +337,31 @@ describe('POST /users/login', () => {
             .end(done);
     });
 
+});
+
+describe('DELETE /users/me/token', () => {
+    it('should remove auth token on logout', (done) => {
+
+        const {
+            _id,
+            tokens
+        } = usersMock[0];
+        request(app)
+            .delete('/users/me/token')
+            .set('x-auth', tokens[0].token)
+            .expect(200)
+            .end((err, res) => {
+                if (err) {
+                    return done(err);
+                }
+
+                User.findById(_id).then(user => {
+                        expect(user.tokens.length).to.equal(0);
+                        done();
+                    })
+                    .catch(err => {
+                        done(err);
+                    });
+            });
+    });
 });
