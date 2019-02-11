@@ -136,7 +136,6 @@ app.patch('/todos/:id', (req, res) => {
 // users routes
 app.post('/users', (req, res) => {
     const body = bodyPick(req);
-
     const user = new User(body);
     user.save().then(_ => {
             return user.generateAuthToken();

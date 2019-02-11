@@ -61,15 +61,13 @@ UserSchema.methods.generateAuthToken = function () {
 };
 
 UserSchema.methods.removeToken = function (token) {
-    const user = this;
     return User.findByToken(token).then(userDb => {
-        user.updateOne({
+        return User.findOneAndUpdate({
             email: userDb.email
         }, {
-            $set: {
-                tokens: []
-            }
+            tokens: []
         });
+
     });
 
 };
